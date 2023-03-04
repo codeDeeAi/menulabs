@@ -5,6 +5,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Database\Eloquent\Casts\Attribute;
+use Illuminate\Support\Facades\Http;
 
 class User extends Authenticatable
 {
@@ -18,7 +20,9 @@ class User extends Authenticatable
     protected $fillable = [
         'name',
         'email',
-        'password',
+        'longitude',
+        'latitude',
+        'password'
     ];
 
     /**
@@ -32,6 +36,15 @@ class User extends Authenticatable
     ];
 
     /**
+     * The attributes that should be added to model.
+     *
+     * @var array<string>
+     */
+    protected $append = [
+        'weather_details'
+    ];
+
+    /**
      * The attributes that should be cast.
      *
      * @var array<string, string>
@@ -39,4 +52,39 @@ class User extends Authenticatable
     protected $casts = [
         'email_verified_at' => 'datetime',
     ];
+
+    /**
+     * Fetch user weather details.
+     *
+     * @return \Illuminate\Database\Eloquent\Casts\Attribute
+     */
+    protected function weatherDetails(): Attribute
+    {
+        return new Attribute(
+            get: function () {
+                $weatherApi = env('WEATHER_API') ?? 'https://api.weather.gov/points/';
+                $path = $weatherApi . $this->latitude . ',' . $this->longitude;
+                $response = Http::get($path);
+
+                return $response->json();
+            },
+        );
+    }
+
+    /**
+     * Scope a query to users and weather details.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder  $query
+     * @return void
+     */
+    public function scopePlusWeatherOptions($query)
+    {
+        $query->select(
+            'id',
+            'name',
+            'email',
+            'longitude',
+            'latitude',
+        );
+    }
 }
